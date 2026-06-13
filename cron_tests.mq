@@ -1,0 +1,152 @@
+include "test"
+| include "cron"
+|
+
+# -- alias expansion --
+
+def test_yearly_alias():
+  let result = cron_parse("@yearly")
+  | assert_eq(result["expression"], "0 0 1 1 *")
+end
+
+def test_annually_alias():
+  let result = cron_parse("@annually")
+  | assert_eq(result["expression"], "0 0 1 1 *")
+end
+
+def test_monthly_alias():
+  let result = cron_parse("@monthly")
+  | assert_eq(result["expression"], "0 0 1 * *")
+end
+
+def test_weekly_alias():
+  let result = cron_parse("@weekly")
+  | assert_eq(result["expression"], "0 0 * * 0")
+end
+
+def test_daily_alias():
+  let result = cron_parse("@daily")
+  | assert_eq(result["expression"], "0 0 * * *")
+end
+
+def test_midnight_alias():
+  let result = cron_parse("@midnight")
+  | assert_eq(result["expression"], "0 0 * * *")
+end
+
+def test_hourly_alias():
+  let result = cron_parse("@hourly")
+  | assert_eq(result["expression"], "0 * * * *")
+end
+
+# -- field type: any (*) --
+
+def test_any_field_minute():
+  let result = cron_parse("* * * * *")
+  | assert_eq(result["fields"]["minute"]["type"], "any")
+end
+
+def test_any_field_all_five():
+  let result = cron_parse("* * * * *")
+  | assert_eq(result["fields"]["minute"]["type"],  "any")
+  | assert_eq(result["fields"]["hour"]["type"],    "any")
+  | assert_eq(result["fields"]["day"]["type"],     "any")
+  | assert_eq(result["fields"]["month"]["type"],   "any")
+  | assert_eq(result["fields"]["weekday"]["type"], "any")
+end
+
+# -- field type: exact --
+
+def test_exact_minute():
+  let result = cron_parse("30 * * * *")
+  | assert_eq(result["fields"]["minute"]["type"], "exact")
+  | assert_eq(result["fields"]["minute"]["values"][0], 30)
+end
+
+def test_exact_hour():
+  let result = cron_parse("0 9 * * *")
+  | assert_eq(result["fields"]["hour"]["type"], "exact")
+  | assert_eq(result["fields"]["hour"]["values"][0], 9)
+end
+
+def test_exact_zero():
+  let result = cron_parse("0 0 * * *")
+  | assert_eq(result["fields"]["minute"]["values"][0], 0)
+  | assert_eq(result["fields"]["hour"]["values"][0], 0)
+end
+
+# -- field type: step (*/n) --
+
+def test_step_every_5_minutes():
+  let result = cron_parse("*/5 * * * *")
+  | assert_eq(result["fields"]["minute"]["type"], "step")
+  | assert_eq(result["fields"]["minute"]["step"], 5)
+end
+
+def test_step_every_2_hours():
+  let result = cron_parse("0 */2 * * *")
+  | assert_eq(result["fields"]["hour"]["type"], "step")
+  | assert_eq(result["fields"]["hour"]["step"], 2)
+end
+
+def test_step_every_15_minutes():
+  let result = cron_parse("*/15 * * * *")
+  | assert_eq(result["fields"]["minute"]["step"], 15)
+end
+
+# -- field type: range --
+
+def test_range_weekday():
+  let result = cron_parse("0 9 * * 1-5")
+  | assert_eq(result["fields"]["weekday"]["type"], "range")
+  | assert_eq(result["fields"]["weekday"]["start"], 1)
+  | assert_eq(result["fields"]["weekday"]["end"], 5)
+end
+
+def test_range_month():
+  let result = cron_parse("0 0 * 3-6 *")
+  | assert_eq(result["fields"]["month"]["type"], "range")
+  | assert_eq(result["fields"]["month"]["start"], 3)
+  | assert_eq(result["fields"]["month"]["end"], 6)
+end
+
+# -- field type: list --
+
+def test_list_weekday():
+  let result = cron_parse("0 0 * * 1,3,5")
+  | assert_eq(result["fields"]["weekday"]["type"], "list")
+  | assert_len(result["fields"]["weekday"]["values"], 3)
+  | assert_eq(result["fields"]["weekday"]["values"][0], 1)
+  | assert_eq(result["fields"]["weekday"]["values"][1], 3)
+  | assert_eq(result["fields"]["weekday"]["values"][2], 5)
+end
+
+def test_list_month():
+  let result = cron_parse("0 0 1 1,6,12 *")
+  | assert_eq(result["fields"]["month"]["type"], "list")
+  | assert_len(result["fields"]["month"]["values"], 3)
+end
+
+# -- cron_describe --
+
+def test_describe_every_minute():
+  let result = cron_describe("* * * * *")
+  | assert_not_none(result)
+  | assert(len(result) > 0)
+end
+
+def test_describe_step():
+  let result = cron_describe("*/5 * * * *")
+  | assert(is_regex_match(result, "5"))
+end
+
+def test_describe_daily_alias():
+  let result = cron_describe("@daily")
+  | assert_not_none(result)
+  | assert(len(result) > 0)
+end
+
+def test_describe_returns_string():
+  let result = cron_describe("0 9 * * 1-5")
+  | assert_true(len(result) > 0)
+end
