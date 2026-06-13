@@ -42,13 +42,28 @@ def _cron_parse_field(field, min_, max_):
       end
     elif (is_regex_match(f, "^[0-9]+(,[0-9]+)+")):
       do
-        let vals = split(f, ",") | map(fn(v): to_number(v);)
+        let vals = map(split(f, ","), fn(v): to_number(v);)
         | {"type": "list", "values": vals}
       end
     elif (is_regex_match(f, "^[0-9]+$")):
       {"type": "exact", "values": [to_number(f)]}
     else:
       {"type": "unknown", "raw": f, "values": []}
+end
+
+def _cron_stringify_field(field):
+  if (field["type"] == "any"):
+    "*"
+  elif (field["type"] == "step"):
+    "*/" + to_string(field["step"])
+  elif (field["type"] == "range"):
+    to_string(field["start"]) + "-" + to_string(field["end"])
+  elif (field["type"] == "list"):
+    join(map(field["values"], fn(v): to_string(v);), ",")
+  elif (field["type"] == "exact"):
+    to_string(field["values"][0])
+  else:
+    field["raw"]
 end
 
 def _cron_describe_field(parsed, unit):
@@ -93,6 +108,16 @@ def cron_parse(expr):
             }
           }
       end
+end
+
+# Converts a parsed cron struct (from cron_parse) back to a 5-field expression string.
+def cron_stringify(parsed):
+  let f = parsed["fields"]
+  | _cron_stringify_field(f["minute"])  + " "
+  + _cron_stringify_field(f["hour"])    + " "
+  + _cron_stringify_field(f["day"])     + " "
+  + _cron_stringify_field(f["month"])   + " "
+  + _cron_stringify_field(f["weekday"])
 end
 
 # Returns a human-readable description of a cron expression.

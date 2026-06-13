@@ -150,3 +150,132 @@ def test_describe_returns_string():
   let result = cron_describe("0 9 * * 1-5")
   | assert_true(len(result) > 0)
 end
+
+# -- cron_stringify: roundtrip --
+
+def test_stringify_all_any():
+  let result = cron_stringify(cron_parse("* * * * *"))
+  | assert_eq(result, "* * * * *")
+end
+
+def test_stringify_exact_fields():
+  let result = cron_stringify(cron_parse("30 9 15 6 3"))
+  | assert_eq(result, "30 9 15 6 3")
+end
+
+def test_stringify_zero_fields():
+  let result = cron_stringify(cron_parse("0 0 1 1 0"))
+  | assert_eq(result, "0 0 1 1 0")
+end
+
+def test_stringify_step_minute():
+  let result = cron_stringify(cron_parse("*/5 * * * *"))
+  | assert_eq(result, "*/5 * * * *")
+end
+
+def test_stringify_step_hour():
+  let result = cron_stringify(cron_parse("0 */2 * * *"))
+  | assert_eq(result, "0 */2 * * *")
+end
+
+def test_stringify_step_every_15():
+  let result = cron_stringify(cron_parse("*/15 * * * *"))
+  | assert_eq(result, "*/15 * * * *")
+end
+
+def test_stringify_range_weekday():
+  let result = cron_stringify(cron_parse("0 9 * * 1-5"))
+  | assert_eq(result, "0 9 * * 1-5")
+end
+
+def test_stringify_range_month():
+  let result = cron_stringify(cron_parse("0 0 * 3-6 *"))
+  | assert_eq(result, "0 0 * 3-6 *")
+end
+
+def test_stringify_range_day():
+  let result = cron_stringify(cron_parse("0 0 1-15 * *"))
+  | assert_eq(result, "0 0 1-15 * *")
+end
+
+def test_stringify_list_weekday():
+  let result = cron_stringify(cron_parse("0 0 * * 1,3,5"))
+  | assert_eq(result, "0 0 * * 1,3,5")
+end
+
+def test_stringify_list_month():
+  let result = cron_stringify(cron_parse("0 0 1 1,6,12 *"))
+  | assert_eq(result, "0 0 1 1,6,12 *")
+end
+
+def test_stringify_list_two_values():
+  let result = cron_stringify(cron_parse("0 8,20 * * *"))
+  | assert_eq(result, "0 8,20 * * *")
+end
+
+# -- cron_stringify: alias expansion --
+
+def test_stringify_yearly_alias():
+  let result = cron_stringify(cron_parse("@yearly"))
+  | assert_eq(result, "0 0 1 1 *")
+end
+
+def test_stringify_monthly_alias():
+  let result = cron_stringify(cron_parse("@monthly"))
+  | assert_eq(result, "0 0 1 * *")
+end
+
+def test_stringify_weekly_alias():
+  let result = cron_stringify(cron_parse("@weekly"))
+  | assert_eq(result, "0 0 * * 0")
+end
+
+def test_stringify_daily_alias():
+  let result = cron_stringify(cron_parse("@daily"))
+  | assert_eq(result, "0 0 * * *")
+end
+
+def test_stringify_midnight_alias():
+  let result = cron_stringify(cron_parse("@midnight"))
+  | assert_eq(result, "0 0 * * *")
+end
+
+def test_stringify_hourly_alias():
+  let result = cron_stringify(cron_parse("@hourly"))
+  | assert_eq(result, "0 * * * *")
+end
+
+def test_stringify_annually_alias():
+  let result = cron_stringify(cron_parse("@annually"))
+  | assert_eq(result, "0 0 1 1 *")
+end
+
+# -- cron_stringify: mixed field types --
+
+def test_stringify_mixed_step_and_range():
+  let result = cron_stringify(cron_parse("*/10 9-17 * * 1-5"))
+  | assert_eq(result, "*/10 9-17 * * 1-5")
+end
+
+def test_stringify_mixed_exact_and_list():
+  let result = cron_stringify(cron_parse("0 12 1,15 * *"))
+  | assert_eq(result, "0 12 1,15 * *")
+end
+
+def test_stringify_mixed_list_and_step():
+  let result = cron_stringify(cron_parse("0,30 */3 * * *"))
+  | assert_eq(result, "0,30 */3 * * *")
+end
+
+# -- cron_stringify: returns a string --
+
+def test_stringify_returns_string():
+  let result = cron_stringify(cron_parse("*/5 0 * * *"))
+  | assert_true(len(result) > 0)
+end
+
+def test_stringify_result_has_four_spaces():
+  let result = cron_stringify(cron_parse("* * * * *"))
+  | let parts = split(result, "\\s+")
+  | assert_len(parts, 5)
+end

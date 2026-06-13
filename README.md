@@ -74,10 +74,6 @@ mq -I raw '
 ' crontab.txt
 ```
 
-## Compatibility
-
-Requires [mq](https://github.com/harehare/mq) v0.5 or later.
-
 ## License
 
 MIT
