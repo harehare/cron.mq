@@ -1,0 +1,100 @@
+# Cron expression parser implemented in mq
+# Supports standard 5-field cron: minute hour day month weekday
+
+# ─── internal ─────────────────────────────────────────────────────────────────
+
+def _cron_weekday_name(n):
+  let names = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"]
+  | if (n >= 0 && n <= 6): names[n] else: "Unknown"
+end
+
+def _cron_month_name(n):
+  let names = ["", "January", "February", "March", "April", "May", "June",
+               "July", "August", "September", "October", "November", "December"]
+  | if (n >= 1 && n <= 12): names[n] else: "Unknown"
+end
+
+def _cron_expand_aliases(expr):
+  let e = trim(to_string(expr))
+  | if (e == "@yearly"  || e == "@annually"): "0 0 1 1 *"
+    elif (e == "@monthly"):  "0 0 1 * *"
+    elif (e == "@weekly"):   "0 0 * * 0"
+    elif (e == "@daily"  || e == "@midnight"): "0 0 * * *"
+    elif (e == "@hourly"):   "0 * * * *"
+    else: e
+end
+
+def _cron_parse_field(field, min_, max_):
+  let f = trim(field)
+  | if (f == "*"):
+      {"type": "any", "values": []}
+    elif (is_regex_match(f, "^\\*/[0-9]+")):
+      let step = to_number(first(regex_match(f, "[0-9]+")))
+      | {"type": "step", "step": step, "values": []}
+    elif (is_regex_match(f, "^[0-9]+-[0-9]+")):
+      let m = capture(f, "^(?P<s>[0-9]+)-(?P<e>[0-9]+)")
+      | {"type": "range", "start": to_number(m["s"]), "end": to_number(m["e"]), "values": []}
+    elif (is_regex_match(f, "^[0-9]+(,[0-9]+)+")):
+      let vals = split(f, ",") | map(fn(v): to_number(v);)
+      | {"type": "list", "values": vals}
+    elif (is_regex_match(f, "^[0-9]+$")):
+      {"type": "exact", "values": [to_number(f)]}
+    else:
+      {"type": "unknown", "raw": f, "values": []}
+end
+
+def _cron_describe_field(parsed, unit, names_fn):
+  if (parsed["type"] == "any"):
+    "every " + unit
+  elif (parsed["type"] == "step"):
+    "every " + to_string(parsed["step"]) + " " + unit + "s"
+  elif (parsed["type"] == "range"):
+    "from " + to_string(parsed["start"]) + " to " + to_string(parsed["end"])
+  elif (parsed["type"] == "list"):
+    join(map(parsed["values"], fn(v): to_string(v);), ", ")
+  elif (parsed["type"] == "exact"):
+    to_string(parsed["values"][0])
+  else:
+    parsed["raw"]
+end
+
+# ─── public API ───────────────────────────────────────────────────────────────
+
+# Parses a cron expression and returns a structured dict.
+# Supports standard 5-field syntax and @-aliases.
+def cron_parse(expr):
+  let expanded = _cron_expand_aliases(expr)
+  | let parts = split(expanded, "\\s+")
+  | if (len(parts) != 5):
+      error("cron: expected 5 fields, got " + to_string(len(parts)))
+    else:
+      do
+        let minute  = _cron_parse_field(parts[0], 0,  59)
+        | let hour  = _cron_parse_field(parts[1], 0,  23)
+        | let day   = _cron_parse_field(parts[2], 1,  31)
+        | let month = _cron_parse_field(parts[3], 1,  12)
+        | let wday  = _cron_parse_field(parts[4], 0,   6)
+        | {
+            "expression": expanded,
+            "fields": {
+              "minute":  minute,
+              "hour":    hour,
+              "day":     day,
+              "month":   month,
+              "weekday": wday
+            }
+          }
+      end
+end
+
+# Returns a human-readable description of a cron expression.
+def cron_describe(expr):
+  let p = cron_parse(expr)
+  | let f = p["fields"]
+  | let min_desc  = _cron_describe_field(f["minute"],  "minute",  fn(v): to_string(v);)
+  | let hr_desc   = _cron_describe_field(f["hour"],    "hour",    fn(v): to_string(v);)
+  | let day_desc  = _cron_describe_field(f["day"],     "day",     fn(v): to_string(v);)
+  | let mon_desc  = _cron_describe_field(f["month"],   "month",   fn(v): _cron_month_name(v);)
+  | let wday_desc = _cron_describe_field(f["weekday"], "weekday", fn(v): _cron_weekday_name(v);)
+  | "At " + min_desc + " past " + hr_desc + ", on " + day_desc + " of the month, in " + mon_desc + ", on " + wday_desc
+end
