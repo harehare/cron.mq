@@ -15,10 +15,18 @@ A cron expression parser implemented as an [mq](https://github.com/harehare/mq) 
 cp cron.mq ~/.local/mq/config/
 ```
 
-### HTTP Import
+### HTTP Import (no local installation needed)
+
+If `mq` was built with the `http-import` feature, you can import directly from GitHub without any local setup. This requires the `--allow-http-import` flag, which is disabled by default:
 
 ```sh
-mq -I raw 'import "github.com/harehare/cron.mq" | cron::cron_describe(.)' <<< "*/5 * * * *"
+mq --allow-http-import -I raw 'import "github.com/harehare/cron.mq" | cron::cron_describe(.)' <<< "*/5 * * * *"
+```
+
+Pin to a specific release with `@vX.Y.Z`:
+
+```sh
+mq --allow-http-import -I raw 'import "github.com/harehare/cron.mq@v1.0.0" | cron::cron_describe(.)' <<< "*/5 * * * *"
 ```
 
 ## API
